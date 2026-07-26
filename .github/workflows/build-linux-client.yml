@@ -25,7 +25,11 @@ jobs:
           git config core.symlinks true
           # Build THIS repo at the branch the workflow was dispatched on (works on any fork).
           git remote add origin "${{ github.server_url }}/${{ github.repository }}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${{ github.token }}" pull origin "${{ github.ref_name }}" --depth=1
+          # GitHubs Git-Endpunkt lehnt "bearer" ab (401) -> basic mit x-access-token,
+          # genau wie actions/checkout es macht. Sonst fragt git nach einem Usernamen.
+          AUTH_B64="$(printf 'x-access-token:%s' "${{ github.token }}" | base64 -w0)"
+          git config --local http.extraheader "AUTHORIZATION: basic $AUTH_B64"
+          git pull origin "${{ github.ref_name }}" --depth=1
           git submodule update --jobs=8 --init --depth=1
 
       - name: Setup Node
