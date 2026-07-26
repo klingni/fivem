@@ -47,6 +47,32 @@ jobs:
         with:
           arch: x64
 
+      # ext/native-doc-gen/build.sh lädt fest Node 12.22.12 und installiert damit
+      # global node-gyp@9.3.1. Dessen Kette make-fetch-happen -> socks-proxy-agent
+      # -> socks zieht ab socks@2.7.2 ip-address@^9, und ip-address@9 nutzt "??"
+      # (Node 14+). Unter Node 12 => "SyntaxError: Unexpected token '?'".
+      # socks@2.7.1 haengt stattdessen an ip@^2 und erfuellt weiterhin ^2.6.2.
+      - name: Pin socks (Node-12-Kompatibilitaet fuer globales node-gyp)
+        shell: bash
+        run: |
+          GLOBAL_DIR="$(cygpath -u "$LOCALAPPDATA")/Yarn/Data/global"
+          mkdir -p "$GLOBAL_DIR"
+          python - "$GLOBAL_DIR/package.json" <<'PY'
+          import json, os, sys
+          p = sys.argv[1]
+          d = {}
+          if os.path.exists(p):
+              try:
+                  d = json.load(open(p))
+              except Exception:
+                  d = {}
+          d.setdefault("name", "yarn-global")
+          d.setdefault("version", "1.0.0")
+          d.setdefault("resolutions", {})["socks"] = "2.7.1"
+          json.dump(d, open(p, "w"), indent=2)
+          print("yarn-global resolutions:", d["resolutions"])
+          PY
+
       - name: Generate and build five release
         shell: bash
         run: |
